@@ -1,0 +1,1286 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excel Üzləşdirmə</title>
+<style>
+/* Düzülüş: iki fayl paneli yan-yana (dar ekranda alt-alta), altında açar, qaydalar, nəticə cədvəli */
+:root{
+  --bg:#F2F5F6; --surface:#FFFFFF; --ink:#14222B; --muted:#586873; --line:#D3DBE0; --soft:#E8EEF1;
+  --accent:#0E6B58; --accent-ink:#FFFFFF; --accent-soft:#DCEFEA;
+  --ok:#17703F; --ok-bg:#DDF1E5; --warn:#8A5A00; --warn-bg:#FBEBC9;
+  --bad:#A8271F; --bad-bg:#F9DCD9; --none:#4C5B65; --none-bg:#E3E8EB;
+  --focus:#1D5FD1;
+  --font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F1519; --surface:#172027; --ink:#E5ECEF; --muted:#94A5AF; --line:#2A373F; --soft:#1F2B32;
+    --accent:#3DBE9F; --accent-ink:#06241D; --accent-soft:#16382F;
+    --ok:#5FD592; --ok-bg:#17382A; --warn:#F0BE5A; --warn-bg:#3A2F12;
+    --bad:#FF9088; --bad-bg:#432019; --none:#A9B7BF; --none-bg:#25323A;
+    --focus:#7FB0FF;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);font-variant-numeric:tabular-nums}
+.wrap{max-width:1280px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-left,0px)) 56px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:20px}
+header.top h1{margin:0;font-size:1.6rem;line-height:1.2;font-weight:650;letter-spacing:-.01em;text-wrap:balance}
+header.top p{margin:6px 0 0;color:var(--muted);max-width:72ch}
+h2{font-size:1.05rem;margin:0;font-weight:650}
+h3{font-size:.8rem;margin:0 0 8px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.step{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
+.step .n{font-family:var(--mono);font-size:.85rem;color:var(--accent);font-weight:600}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px}
+.panel,.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.stack{display:flex;flex-direction:column;gap:16px}
+.panel-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.side-tag{font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:4px}
+.hint{color:var(--muted);font-size:.85rem;margin:0}
+.drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:132px;border:1.5px dashed var(--line);border-radius:8px;padding:16px;text-align:center;cursor:pointer;background:var(--bg);transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop:focus-within{outline:2px solid var(--focus);outline-offset:2px}
+.drop input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.drop-title{font-weight:600}
+.drop-sub{color:var(--muted);font-size:.85rem}
+.busy{color:var(--muted);font-size:.9rem;padding:8px 0}
+.err{margin:10px 0 0;padding:8px 10px;border-radius:6px;background:var(--bad-bg);color:var(--bad);font-size:.9rem}
+.fileline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:10px}
+.fileline strong{overflow-wrap:anywhere}
+.fileline span{color:var(--muted);font-size:.85rem}
+.row2{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:10px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:.8rem;color:var(--muted);min-width:0}
+select,input[type=number],input[type=text],input[type=date]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%;min-width:0}
+input[type=number]{width:84px}
+select:focus-visible,input:focus-visible,button:focus-visible,.chip:focus-within{outline:2px solid var(--focus);outline-offset:2px}
+button{font:inherit;cursor:pointer}
+button.link{background:none;border:0;color:var(--accent);padding:0;text-decoration:underline;text-underline-offset:2px;font-size:.85rem}
+.scroll{overflow:auto;border:1px solid var(--line);border-radius:6px;max-width:100%}
+.scroll.tall{max-height:440px}
+table.grid{border-collapse:collapse;width:max-content;min-width:100%;font-size:.85rem}
+table.grid th,table.grid td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+table.grid th{position:sticky;top:0;background:var(--soft);font-weight:600;z-index:1}
+table.grid th.brought{background:var(--accent-soft);color:var(--accent)}
+table.grid tbody tr:last-child td{border-bottom:0}
+.keys{display:flex;flex-direction:column;gap:10px}
+.keyrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.keyrow label.f{flex:1 1 180px}
+.keyrow select,.keyrow input{width:100%}
+.eq{font-family:var(--mono);color:var(--muted);padding-bottom:7px}
+.rm{background:none;border:1px solid var(--line);border-radius:6px;color:var(--muted);min-height:36px;padding:0 10px}
+.rm:disabled{opacity:.4;cursor:default}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 20px;font-weight:650;min-height:42px}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:6px 12px;min-height:34px;font-weight:600}
+.cols-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--surface);font-size:.88rem;cursor:pointer;user-select:none}
+.chip input{accent-color:var(--accent);margin:0}
+.chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px 28px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opts label.o{display:flex;gap:8px;align-items:flex-start;font-size:.92rem}
+.opts label.o input{margin-top:4px;accent-color:var(--accent)}
+.opts small,.rule-head small{display:block;color:var(--muted);font-size:.8rem;font-weight:400}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:12px}
+.rule{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg);min-width:0}
+.rule:has(.rule-on:checked){border-color:var(--accent);background:var(--surface)}
+.rule-head{display:flex;gap:10px;align-items:flex-start;font-weight:650;cursor:pointer}
+.rule-head input{margin-top:5px;accent-color:var(--accent)}
+.rule-body{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.fields{display:flex;flex-wrap:wrap;gap:10px}
+.fields label.f{flex:1 1 170px}
+.fields select,.fields input[type=text],.fields input[type=date]{width:100%}
+.inline{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.inline input{accent-color:var(--accent)}
+.runbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px}
+.views{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.view{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 12px;font-size:.88rem;display:inline-flex;gap:8px;align-items:baseline}
+.view b{font-weight:650}
+.view[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.view .cnt{font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.notice{margin:0 0 10px;padding:8px 12px;border-radius:6px;font-size:.9rem;background:var(--warn-bg);color:var(--warn)}
+.summary{margin:0 0 4px;color:var(--muted)}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:.78rem;font-weight:650}
+.pill.found{background:var(--ok-bg);color:var(--ok)}
+.pill.dup,.pill.picked{background:var(--warn-bg);color:var(--warn)}
+.pill.notfound{background:var(--bad-bg);color:var(--bad)}
+.pill.empty,.pill.ronly,.pill.nocond{background:var(--none-bg);color:var(--none)}
+.tablenote{margin:8px 0 0;color:var(--muted);font-size:.85rem}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Excel Üzləşdirmə</h1>
+    <p>İki Excel faylını açar sütun üzrə üzləşdirir: soldakı faylın bütün sətirləri saxlanır, sağdakından sütunlar gətirilir, hər sətirə status yazılır. İstəyə görə tarix, aralıq və süzgəc şərtləri qoyulur. Fayllar yalnız bu brauzerdə işlənir, heç yerə göndərilmir.</p>
+  </header>
+
+  <section aria-labelledby="s1">
+    <div class="step"><span class="n">1</span><h2 id="s1">Faylları seçin</h2></div>
+    <div class="panels" id="panels"></div>
+  </section>
+
+  <section id="setup" class="stack" hidden>
+    <div class="card" aria-labelledby="s2">
+      <div class="step"><span class="n">2</span><h2 id="s2">Açarları və sütunları seçin</h2></div>
+      <div class="setup-grid">
+        <div>
+          <h3>Üzləşdirmə açarı</h3>
+          <div class="keys" id="keys"></div>
+          <div style="margin-top:10px"><button type="button" class="btn ghost small" id="addkey">+ Açar əlavə et</button></div>
+          <p class="hint" style="margin-top:8px">Bir neçə açar seçsəniz, sətir yalnız hamısı uyğun gələndə tapılmış sayılır (məsələn ad və məktəb).</p>
+        </div>
+        <div>
+          <div class="cols-head">
+            <h3 style="margin:0">Sağdan gətirilsin</h3>
+            <button type="button" class="link" id="takeall">Hamısı</button>
+            <button type="button" class="link" id="takenone">Heç biri</button>
+            <span class="hint" id="takecount"></span>
+          </div>
+          <div class="chips" id="take"></div>
+          <p class="hint" style="margin-top:8px">Heç nə seçilməsə, yalnız Status sütunu əlavə olunur.</p>
+        </div>
+      </div>
+      <div style="margin-top:20px">
+        <h3>Açarın müqayisəsi</h3>
+        <div class="setup-grid">
+          <div class="opts">
+            <label class="o"><input type="checkbox" id="o-spaces" checked><span>Boşluqları təmizlə<small>Ardıcıl boşluqlar bir olur, baş və son boşluqlar silinir.</small></span></label>
+            <label class="o"><input type="checkbox" id="o-nocase" checked><span>Böyük və kiçik hərfi eyni say</span></label>
+            <label class="o"><input type="checkbox" id="o-diacr" checked><span>Azərbaycan hərflərini ASCII ilə eyniləşdir<small>ə=e, ı=i, ö=o, ü=u, ç=c, ş=s, ğ=g. Adlar üçündür, kod və hesab üçün söndürün.</small></span></label>
+          </div>
+          <div class="opts">
+            <label class="o"><input type="checkbox" id="o-alnum"><span>Yalnız hərf və rəqəmi saxla<small>Hesab nömrəsi və FİN üçün: boşluq, tire və nöqtə nəzərə alınmır.</small></span></label>
+            <label class="o"><input type="checkbox" id="o-zeros"><span>Rəqəmli açarlarda baştakı sıfırları nəzərə alma<small>0012345 və 12345 eyni sayılır. Yalançı uyğunluq riski var, ehtiyatla işlədin.</small></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" aria-labelledby="s3">
+      <div class="step"><span class="n">3</span><h2 id="s3">Qaydalar</h2><span class="hint">Hamısı istəyə görədir. Qoşulmayan qayda işləmir.</span></div>
+      <div class="rules">
+
+        <div class="rule">
+          <label class="rule-head"><input type="checkbox" class="rule-on" id="f-on"><span>Sağ cədvəldə süzgəc<small>Yalnız şərtlərə uyğun sağ sətirlər nəzərə alınır.</small></span></label>
+          <div class="rule-body" id="f-body" hidden>
+            <div class="keys" id="f-rows"></div>
+            <div><button type="button" class="btn ghost small" id="f-add">+ Şərt əlavə et</button></div>
+          </div>
+        </div>
+
+        <div class="rule">
+          <label class="rule-head"><input type="checkbox" class="rule-on" id="d-on"><span>Tarix şərti<small>Seçilmiş tarix sağda başlanğıc və bitmə tarixinin içində olsun (hər iki tarix daxil).</small></span></label>
+          <div class="rule-body" id="d-body" hidden>
+            <div class="fields">
+              <label class="f">Tarix<input type="date" id="d-ref"></label>
+              <label class="f">Başlanğıc sütunu (sağ)<select id="d-start" data-src="R" data-optional="1"></select></label>
+              <label class="f">Bitmə sütunu (sağ)<select id="d-end" data-src="R" data-optional="1"></select></label>
+              <label class="f">Bitmə tarixi boşdursa<select id="d-empty">
+                <option value="reject">Nəzərə alma (sətir uyğun sayılmır)</option>
+                <option value="accept">Qəbul et (müddət açıqdır)</option>
+              </select></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule">
+          <label class="rule-head"><input type="checkbox" class="rule-on" id="r-on"><span>Aralıq üzrə axtarış<small>Soldakı dəyər sağda «dən» və «dək» sütunlarının arasına düşsün (məsələn staj üzrə dərəcə).</small></span></label>
+          <div class="rule-body" id="r-body" hidden>
+            <div class="fields">
+              <label class="f">Sol dəyər sütunu (sol)<select id="r-left" data-src="L"></select></label>
+              <label class="f">Aşağı sərhəd (sağ)<select id="r-from" data-src="R"></select></label>
+              <label class="f">Yuxarı sərhəd (sağ)<select id="r-to" data-src="R"></select></label>
+              <label class="f">Sərhədlər<select id="r-incl">
+                <option value="0">aşağı ≤ dəyər &lt; yuxarı</option>
+                <option value="1">aşağı ≤ dəyər ≤ yuxarı</option>
+              </select></label>
+            </div>
+            <label class="inline"><input type="checkbox" id="r-zero"> Boş dəyəri 0 say</label>
+            <p class="hint">Boş aşağı sərhəd «sonsuz aşağı», boş yuxarı sərhəd «sonsuz yuxarı» sayılır.</p>
+          </div>
+        </div>
+
+        <div class="rule">
+          <label class="rule-head"><input type="checkbox" class="rule-on" id="n-on"><span>Qeyd yaz<small>Uyğun sətir tapılan sətirlərə yeni sütunda qeyd yazılır.</small></span></label>
+          <div class="rule-body" id="n-body" hidden>
+            <div class="fields">
+              <label class="f">Qeydin mətni<input type="text" id="n-text" value="Vəzifə dəyişimi"></label>
+              <label class="f">Sütunun adı<input type="text" id="n-name" value="Qeyd"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="rule">
+          <label class="rule-head"><input type="checkbox" class="rule-on" id="c-on"><span>Sütunları müqayisə et<small>Soldakı sütun tapılan sağ sətirdəki sütunla müqayisə olunur: Uyğundur, Uyğun deyil.</small></span></label>
+          <div class="rule-body" id="c-body" hidden>
+            <div class="fields">
+              <label class="f">Sol sütun<select id="c-left" data-src="L"></select></label>
+              <label class="f">Sağ sütun<select id="c-right" data-src="R"></select></label>
+              <label class="f">Yeni sütunun adı<input type="text" id="c-name" value="Yoxlama"></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px">
+        <h3>Bir neçə sağ sətir uyğun gələndə</h3>
+        <div class="fields" style="max-width:760px">
+          <label class="f">Seçim qaydası<select id="policy">
+            <option value="first">İlk sətri götür («Təkrar» kimi qeyd olunur)</option>
+            <option value="blank">Boş burax («Təkrar» kimi qeyd olunur)</option>
+            <option value="all">Hamısını göstər (sətirlər artır)</option>
+            <option value="latest">Ən sonuncunu götür (tarix və ya rəqəm sütununa görə)</option>
+            <option value="highest">Ən böyük dəyərlini götür</option>
+            <option value="lowest">Ən kiçik dəyərlini götür</option>
+          </select></label>
+          <label class="f" id="pick-wrap" hidden>Müqayisə sütunu (sağ)<select id="pick-col" data-src="R"></select></label>
+        </div>
+        <p class="hint" style="margin-top:8px">Bərabər dəyərlərdə fayldakı ilk sətir götürülür. «Seçildi» statusu bir neçə namizəddən qayda ilə seçilən sətirləri göstərir.</p>
+      </div>
+
+      <div class="runbar" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+        <button type="button" class="btn" id="run">Üzləşdir</button>
+        <button type="button" class="btn ghost" id="rc-save">Qaydanı saxla</button>
+        <button type="button" class="btn ghost" id="rc-load">Qaydanı yüklə</button>
+        <input type="file" id="rc-file" accept=".json,application/json" hidden>
+        <span class="hint" id="runmsg" role="status"></span>
+      </div>
+      <p class="hint" id="recipemsg" role="status" style="margin-top:8px"></p>
+    </div>
+  </section>
+
+  <section id="results" class="card" hidden aria-labelledby="s4">
+    <div class="step"><span class="n">4</span><h2 id="s4">Nəticə</h2></div>
+    <p class="summary" id="summary"></p>
+    <div id="notices"></div>
+    <div class="views" id="views" role="group" aria-label="Nəticə görünüşü"></div>
+    <div class="scroll tall" id="resscroll" tabindex="0" aria-label="Nəticə cədvəli"><div id="restable"></div></div>
+    <p class="tablenote" id="tablenote"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="exp-cur">Cari görünüşü Excel-ə yüklə</button>
+      <button type="button" class="btn ghost" id="exp-all">Hamısını yüklə (ayrı vərəqlərlə)</button>
+      <button type="button" class="btn ghost" id="chain">Nəticəni yeni sol fayl et</button>
+      <span class="hint" id="expmsg" role="status"></span>
+    </div>
+    <p class="hint" style="margin-top:8px">«Nəticəni yeni sol fayl et» addımları zəncirləməyə imkan verir: birinci üzləşdirmənin nəticəsi ikinci üzləşdirmənin əsas cədvəli olur.</p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* Üzləşdirmə məntiqi: açar normallaşdırması, vərəqin oxunması, birləşdirmə, şərtlər.
+   Brauzerdə window.UzlesCore, Node-da module.exports kimi işləyir. */
+(function (root) {
+  'use strict';
+
+  var MAP_LOWER = { 'ə': 'e', 'ı': 'i', 'ö': 'o', 'ü': 'u', 'ç': 'c', 'ş': 's', 'ğ': 'g' };
+  var MAP_UPPER = { 'Ə': 'E', 'İ': 'I', 'Ö': 'O', 'Ü': 'U', 'Ç': 'C', 'Ş': 'S', 'Ğ': 'G' };
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  /* Excel tarixləri bəzən saat qurşağı səbəbindən gecəyarısından 1-2 saat kənarda gəlir; ən yaxın günə yuvarlayır. */
+  function snapDate(d) {
+    var m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var m2 = new Date(m.getTime() + 864e5);
+    var near = (d - m) <= (m2 - d) ? m : m2;
+    return Math.abs(d - near) < 2 * 3600e3 ? near : d;
+  }
+
+  function fmtDate(d) {
+    d = snapDate(d);
+    var s = pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.' + d.getFullYear();
+    if (d.getHours() || d.getMinutes() || d.getSeconds()) {
+      s += ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+    return s;
+  }
+
+  function cellToString(v) {
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) return isNaN(v.getTime()) ? '' : fmtDate(v);
+    return String(v);
+  }
+
+  function isEmptyCell(v) {
+    return v === '' || v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+  }
+
+  function ymd(y, m, d) {
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return y * 10000 + m * 100 + d;
+  }
+
+  /* Tarixi yyyymmdd tam ədədinə çevirir; tarix deyilsə null. Rəqəmlər tarix sayılmır. */
+  function dateKey(v) {
+    if (v instanceof Date) {
+      if (isNaN(v.getTime())) return null;
+      var d = snapDate(v);
+      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    }
+    if (typeof v === 'string') {
+      var s = v.trim();
+      var m = /^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/.exec(s);
+      if (m) return ymd(+m[3], +m[2], +m[1]);
+      m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+      if (m) return ymd(+m[1], +m[2], +m[3]);
+    }
+    return null;
+  }
+
+  function toNum(v) {
+    if (typeof v === 'number') return isFinite(v) ? v : NaN;
+    if (typeof v === 'string') {
+      var s = v.trim().replace(',', '.');
+      if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    }
+    return NaN;
+  }
+
+  /* o: {spaces, nocase, diacritics, alnum, zeros} */
+  function normKey(v, o) {
+    var s = cellToString(v);
+    s = s.normalize('NFC').replace(/[​-‍﻿]/g, '').replace(/ /g, ' ');
+    if (o.alnum) s = s.replace(/[^\p{L}\p{N}]/gu, '');
+    else if (o.spaces) s = s.replace(/\s+/g, ' ').trim();
+    if (o.nocase) s = s.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+    if (o.diacritics) s = s.replace(/[əıöüçşğƏİÖÜÇŞĞ]/g, function (c) { return MAP_LOWER[c] || MAP_UPPER[c] || c; });
+    if (o.zeros && /^\d+$/.test(s)) s = s.replace(/^0+(?=\d)/, '');
+    return s;
+  }
+
+  function dedupeHeaders(h) {
+    var seen = new Map();
+    return h.map(function (x, i) {
+      var name = cellToString(x).trim();
+      if (!name) name = 'Sütun ' + (i + 1);
+      var k = name.toLowerCase();
+      var n = (seen.get(k) || 0) + 1;
+      seen.set(k, n);
+      return n > 1 ? name + '_' + n : name;
+    });
+  }
+
+  /* aoa: massiv massivlər; hIdx: başlıq sətrinin indeksi (0-dan) */
+  function parseSheet(aoa, hIdx) {
+    if (!aoa || !aoa.length) return { headers: [], rows: [] };
+    hIdx = Math.min(Math.max(0, hIdx | 0), aoa.length - 1);
+    var hdr = aoa[hIdx] || [];
+    var width = hdr.length;
+    var body = [];
+    for (var i = hIdx + 1; i < aoa.length; i++) {
+      var r = aoa[i];
+      var empty = true;
+      for (var j = 0; j < r.length; j++) {
+        var v = r[j];
+        if (v !== '' && v !== null && v !== undefined) { empty = false; break; }
+      }
+      if (!empty) { body.push(r); if (r.length > width) width = r.length; }
+    }
+    var h = [];
+    for (var c = 0; c < width; c++) h.push(c < hdr.length ? hdr[c] : '');
+    var headers = dedupeHeaders(h);
+    var rows = body.map(function (r) {
+      if (r.length === width) return r;
+      var x = r.slice();
+      while (x.length < width) x.push('');
+      return x;
+    });
+    return { headers: headers, rows: rows };
+  }
+
+  function keyOf(row, idxs, o) {
+    var k = '';
+    for (var i = 0; i < idxs.length; i++) {
+      var s = normKey(row[idxs[i]], o);
+      if (s === '') return '';
+      k += (i ? '\u0001' : '') + s;
+    }
+    return k;
+  }
+
+  function statusLabel(s, n) {
+    switch (s) {
+      case 'found': return 'Tapıldı';
+      case 'dup': return 'Təkrar (' + n + ')';
+      case 'picked': return 'Seçildi (' + n + '-dən)';
+      case 'nocond': return 'Şərt ödənmir';
+      case 'notfound': return 'Tapılmadı';
+      case 'empty': return 'Açar boşdur';
+      case 'ronly': return 'Solda yoxdur';
+      default: return s;
+    }
+  }
+
+  /* ---------- şərtlər ---------- */
+
+  /* filters: [{col, op, val}]; op: nonempty | empty | eq | neq | contains */
+  function buildFilterFn(filters, o) {
+    var no = { spaces: true, nocase: true, diacritics: !!o.diacritics, alnum: false, zeros: false };
+    var f = (filters || []).filter(function (x) { return x && x.col >= 0 && x.op; })
+      .map(function (x) { return { col: x.col, op: x.op, val: normKey(x.val || '', no) }; });
+    return function (row) {
+      for (var i = 0; i < f.length; i++) {
+        var x = f[i], raw = row[x.col], empty = isEmptyCell(raw);
+        var s = empty ? '' : normKey(raw, no);
+        switch (x.op) {
+          case 'nonempty': if (empty) return false; break;
+          case 'empty': if (!empty) return false; break;
+          case 'eq': if (s !== x.val) return false; break;
+          case 'neq': if (s === x.val) return false; break;
+          case 'contains': if (s.indexOf(x.val) < 0) return false; break;
+        }
+      }
+      return true;
+    };
+  }
+
+  /* dc: {start, end, ref (yyyymmdd), emptyEnd: 'accept' | 'reject'}; start/end -1 olarsa nəzərə alınmır */
+  function dateOk(row, dc) {
+    var sk = -Infinity, ek = Infinity, s, e;
+    if (dc.start >= 0) {
+      s = row[dc.start];
+      if (!isEmptyCell(s)) { sk = dateKey(s); if (sk === null) return false; }
+    }
+    if (dc.end >= 0) {
+      e = row[dc.end];
+      if (isEmptyCell(e)) { if (dc.emptyEnd !== 'accept') return false; }
+      else { ek = dateKey(e); if (ek === null) return false; }
+    }
+    return sk <= dc.ref && dc.ref <= ek;
+  }
+
+  function bound(v, def) {
+    if (isEmptyCell(v)) return def;
+    var n = toNum(v);
+    return isNaN(n) ? null : n;
+  }
+
+  /* rg: {left, from, to, hiIncl, emptyAsZero} */
+  function leftValue(row, rg) {
+    var v = row[rg.left];
+    if (isEmptyCell(v)) return rg.emptyAsZero ? 0 : null;
+    var n = toNum(v);
+    return isNaN(n) ? null : n;
+  }
+
+  function rangeOk(row, rg, lv) {
+    var lo = bound(row[rg.from], -Infinity), hi = bound(row[rg.to], Infinity);
+    if (lo === null || hi === null) return false;
+    return lo <= lv && (rg.hiIncl ? lv <= hi : lv < hi);
+  }
+
+  function sortKey(v) {
+    var dk = dateKey(v);
+    if (dk !== null) return dk;
+    var n = toNum(v);
+    return isNaN(n) ? null : n;
+  }
+
+  /* hits arasında ən böyük (highest) və ya ən kiçik (lowest) dəyərli olanın yerini qaytarır; bərabərlikdə ilki */
+  function pickIndex(hits, R, col, mode) {
+    if (col === undefined || col < 0) return 0;
+    var best = -1, bk = null;
+    for (var i = 0; i < hits.length; i++) {
+      var k = sortKey(R.rows[hits[i]][col]);
+      if (k === null) continue;
+      if (best < 0 || (mode === 'lowest' ? k < bk : k > bk)) { best = i; bk = k; }
+    }
+    return best < 0 ? 0 : best;
+  }
+
+  function eqVals(a, b, o) {
+    var na = toNum(a), nb = toNum(b);
+    if (!isNaN(na) && !isNaN(nb)) return na === nb;
+    var no = { spaces: true, nocase: true, diacritics: !!o.diacritics, alnum: false, zeros: false };
+    return normKey(a, no) === normKey(b, no);
+  }
+
+  /* L, R: {headers, rows}; pairs: [{l, r}]; take: R-dən gətiriləcək sütunlar;
+     policy: 'first' | 'blank' | 'all' | 'latest' | 'highest' | 'lowest' (bir neçə uyğun sətir olanda);
+     x (istəyə görə): {filters, date, range, pickCol, noteText, noteName, compare:{l,r,name}} */
+  function runJoin(L, R, pairs, take, o, policy, x) {
+    x = x || {};
+    var li = pairs.map(function (p) { return p.l; });
+    var ri = pairs.map(function (p) { return p.r; });
+    var filterFn = (x.filters && x.filters.length) ? buildFilterFn(x.filters, o) : null;
+    var dc = x.date || null, rg = x.range || null;
+    var hasCond = !!(filterFn || dc || rg);
+
+    var rkeys = new Array(R.rows.length), allKeys = new Set(), idx = new Map();
+    var j, k, a;
+    for (j = 0; j < R.rows.length; j++) {
+      var rr = R.rows[j];
+      k = keyOf(rr, ri, o);
+      rkeys[j] = k;
+      if (!k) continue;
+      allKeys.add(k);
+      if (filterFn && !filterFn(rr)) continue;
+      if (dc && !dateOk(rr, dc)) continue;
+      a = idx.get(k);
+      if (a) a.push(j); else idx.set(k, [j]);
+    }
+    var dupKeysRight = 0, dupRowsRight = 0;
+    idx.forEach(function (arr) { if (arr.length > 1) { dupKeysRight++; dupRowsRight += arr.length; } });
+
+    var used = new Set(L.headers.map(function (h) { return h.toLowerCase(); }));
+    function uniq(n) {
+      if (used.has(n.toLowerCase())) n = n + ' (sağ)';
+      var base = n, c = 2;
+      while (used.has(n.toLowerCase())) n = base + ' ' + (c++);
+      used.add(n.toLowerCase());
+      return n;
+    }
+    var takeNames = take.map(function (t) { return uniq(R.headers[t]); });
+    var hasNote = !!x.noteText, hasCmp = !!x.compare;
+    var noteName = hasNote ? uniq(x.noteName || 'Qeyd') : '';
+    var cmpName = hasCmp ? uniq(x.compare.name || 'Müqayisə') : '';
+    var statusName = used.has('status') ? 'Üzləşdirmə statusu' : 'Status';
+
+    var blank = take.map(function () { return ''; });
+    function pick(rowIdx) { var row = R.rows[rowIdx]; return take.map(function (t) { return row[t]; }); }
+    function build(lr, rowIdx) {
+      var cells = lr.concat(rowIdx === null ? blank : pick(rowIdx));
+      if (hasNote) cells.push(rowIdx === null ? '' : x.noteText);
+      if (hasCmp) {
+        if (rowIdx === null) cells.push('');
+        else {
+          var lv = lr[x.compare.l], rv = R.rows[rowIdx][x.compare.r];
+          cells.push(isEmptyCell(lv) || isEmptyCell(rv) ? 'Müqayisə mümkün deyil' : (eqVals(lv, rv, o) ? 'Uyğundur' : 'Uyğun deyil'));
+        }
+      }
+      return cells;
+    }
+
+    var rows = [];
+    var cnt = { found: 0, dup: 0, picked: 0, nocond: 0, notfound: 0, empty: 0 };
+    var leftKeys = new Set();
+    var sampleL = '';
+
+    for (var i = 0; i < L.rows.length; i++) {
+      var lr = L.rows[i];
+      k = keyOf(lr, li, o);
+      if (!k) { rows.push({ c: build(lr, null), s: 'empty', n: 0 }); cnt.empty++; continue; }
+      leftKeys.add(k);
+      if (!sampleL) sampleL = k.replace(/\u0001/g, ' | ');
+      var hits = idx.get(k);
+      if (hits && rg) {
+        var lv0 = leftValue(lr, rg);
+        hits = lv0 === null ? [] : hits.filter(function (jj) { return rangeOk(R.rows[jj], rg, lv0); });
+      }
+      if (!hits || !hits.length) {
+        if (hasCond && allKeys.has(k)) { rows.push({ c: build(lr, null), s: 'nocond', n: 0 }); cnt.nocond++; }
+        else { rows.push({ c: build(lr, null), s: 'notfound', n: 0 }); cnt.notfound++; }
+      } else if (hits.length === 1) {
+        rows.push({ c: build(lr, hits[0]), s: 'found', n: 1 }); cnt.found++;
+      } else if (policy === 'latest' || policy === 'highest' || policy === 'lowest') {
+        var pi = pickIndex(hits, R, x.pickCol, policy === 'lowest' ? 'lowest' : 'highest');
+        rows.push({ c: build(lr, hits[pi]), s: 'picked', n: hits.length }); cnt.picked++;
+      } else {
+        cnt.dup++;
+        if (policy === 'all') {
+          for (var q = 0; q < hits.length; q++) rows.push({ c: build(lr, hits[q]), s: 'dup', n: hits.length });
+        } else if (policy === 'blank') {
+          rows.push({ c: build(lr, null), s: 'dup', n: hits.length });
+        } else {
+          rows.push({ c: build(lr, hits[0]), s: 'dup', n: hits.length });
+        }
+      }
+    }
+
+    var ro = [];
+    for (j = 0; j < R.rows.length; j++) {
+      k = rkeys[j];
+      if (!k) ro.push({ c: R.rows[j], s: 'empty', n: 0 });
+      else if (!leftKeys.has(k)) ro.push({ c: R.rows[j], s: 'ronly', n: 0 });
+    }
+
+    var firstR = allKeys.values().next();
+    return {
+      headers: L.headers.concat(takeNames, noteName ? [noteName] : [], cmpName ? [cmpName] : []),
+      leftWidth: L.headers.length,
+      statusName: statusName,
+      rows: rows,
+      rightOnly: { headers: R.headers.slice(), rows: ro },
+      counts: {
+        left: L.rows.length, right: R.rows.length, out: rows.length,
+        found: cnt.found, dup: cnt.dup, picked: cnt.picked, nocond: cnt.nocond,
+        notfound: cnt.notfound, empty: cnt.empty, rightOnly: ro.length
+      },
+      dupKeysRight: dupKeysRight,
+      dupRowsRight: dupRowsRight,
+      sample: { l: sampleL, r: firstR.done ? '' : firstR.value.replace(/\u0001/g, ' | ') }
+    };
+  }
+
+  var api = {
+    normKey: normKey, cellToString: cellToString, parseSheet: parseSheet,
+    runJoin: runJoin, statusLabel: statusLabel, dedupeHeaders: dedupeHeaders,
+    dateKey: dateKey, toNum: toNum, isEmptyCell: isEmptyCell, fmtDate: fmtDate
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.UzlesCore = api;
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.UzlesCore;
+  function $(s, r) { return (r || document).querySelector(s); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function tick() { return new Promise(function (r) { setTimeout(r, 30); }); }
+  function fmtN(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+
+  var S = { L: null, R: null };
+  var pairs = [{ l: 0, r: 0 }];
+  var take = new Set();
+  var frows = [{ col: 0, op: 'nonempty', val: '' }];
+  var pairsVer = '';
+  var RES = null, VIEW = 'all', PENDING = null;
+  var MAXPAIRS = 3, SHOW = 200;
+
+  var SIDES = {
+    L: { tag: 'SOL', title: 'Əsas fayl', hint: 'Nəticədəki bütün sətirlər bu fayldan gəlir.' },
+    R: { tag: 'SAĞ', title: 'İkinci fayl', hint: 'Buradan sütunlar gətirilir.' }
+  };
+
+  /* ---------- panellər ---------- */
+  function buildPanel(side) {
+    var m = SIDES[side];
+    var root = el('article', 'panel');
+    root.innerHTML =
+      '<div class="panel-head"><span class="side-tag">' + m.tag + '</span><h2>' + m.title + '</h2></div>' +
+      '<p class="hint" style="margin:-4px 0 10px">' + m.hint + '</p>' +
+      '<label class="drop" id="drop-' + side + '" for="file-' + side + '">' +
+        '<input type="file" id="file-' + side + '" accept=".xlsx,.xlsm,.xls">' +
+        '<span class="drop-title">Excel faylını seçin və ya bura buraxın</span>' +
+        '<span class="drop-sub">.xlsx, .xlsm, .xls</span>' +
+      '</label>' +
+      '<div class="busy" id="busy-' + side + '" hidden>Fayl oxunur…</div>' +
+      '<div class="err" id="err-' + side + '" role="alert" hidden></div>' +
+      '<div id="loaded-' + side + '" hidden>' +
+        '<div class="fileline"><strong id="fname-' + side + '"></strong><span id="fmeta-' + side + '"></span><button type="button" class="link" id="clear-' + side + '">Başqa fayl seç</button></div>' +
+        '<div class="row2" id="row2-' + side + '">' +
+          '<label class="f">Vərəq<select id="sheet-' + side + '"></select></label>' +
+          '<label class="f">Başlıq sətri (Excel sətir nömrəsi)<input type="number" id="hdr-' + side + '" min="1" value="1"></label>' +
+        '</div>' +
+        '<div class="scroll" id="preview-' + side + '" tabindex="0" aria-label="Fayl önizləməsi"></div>' +
+      '</div>';
+    $('#panels').appendChild(root);
+
+    var input = $('#file-' + side), drop = $('#drop-' + side);
+    input.addEventListener('change', function () { handleFile(side, input.files[0]); });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(side, f);
+    });
+    $('#clear-' + side).addEventListener('click', function () {
+      S[side] = null; input.value = ''; renderPanel(side); refreshSetup();
+    });
+    $('#sheet-' + side).addEventListener('change', function (e) {
+      S[side].sheet = e.target.value; parseData(side); renderPanel(side); refreshSetup();
+    });
+    $('#hdr-' + side).addEventListener('change', function (e) {
+      var v = parseInt(e.target.value, 10);
+      S[side].headerRow = v >= 1 ? v : 1; parseData(side); renderPanel(side); refreshSetup();
+    });
+  }
+
+  function showErr(side, msg) { var e = $('#err-' + side); e.textContent = msg; e.hidden = false; }
+
+  async function handleFile(side, file) {
+    if (!file) return;
+    $('#err-' + side).hidden = true;
+    if (typeof XLSX === 'undefined') {
+      showErr(side, 'Excel kitabxanası yüklənmədi. İnternet bağlantısını yoxlayıb səhifəni yeniləyin.');
+      return;
+    }
+    $('#busy-' + side).hidden = false;
+    await tick();
+    try {
+      var buf = await file.arrayBuffer();
+      var wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      var d = { file: file, wb: wb, sheet: wb.SheetNames[0], headerRow: 1, headers: [], rows: [], ver: 0 };
+      S[side] = d;
+      parseData(side);
+    } catch (e) {
+      S[side] = null;
+      showErr(side, 'Fayl oxunmadı: ' + (e && e.message ? e.message : e));
+    }
+    $('#busy-' + side).hidden = true;
+    renderPanel(side);
+    refreshSetup();
+  }
+
+  function parseData(side) {
+    var d = S[side];
+    var ws = d.wb.Sheets[d.sheet];
+    d.ver++;
+    if (!ws || !ws['!ref']) { d.headers = []; d.rows = []; return; }
+    var off = XLSX.utils.decode_range(ws['!ref']).s.r;
+    var aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', blankrows: true });
+    var p = C.parseSheet(aoa, d.headerRow - 1 - off);
+    d.headers = p.headers; d.rows = p.rows;
+  }
+
+  function renderPanel(side) {
+    var d = S[side];
+    $('#drop-' + side).hidden = !!d;
+    $('#loaded-' + side).hidden = !d;
+    if (!d) return;
+    $('#fname-' + side).textContent = d.file.name;
+    $('#fmeta-' + side).textContent = fmtN(d.rows.length) + ' sətir · ' + d.headers.length + ' sütun';
+    $('#row2-' + side).hidden = !d.wb;
+    var sel = $('#sheet-' + side);
+    sel.textContent = '';
+    if (d.wb) {
+      d.wb.SheetNames.forEach(function (n) {
+        var o = el('option', null, n); o.value = n; if (n === d.sheet) o.selected = true; sel.appendChild(o);
+      });
+      $('#hdr-' + side).value = d.headerRow;
+    }
+    var box = $('#preview-' + side);
+    box.textContent = '';
+    if (!d.headers.length) { box.appendChild(el('p', 'hint', 'Bu vərəqdə məlumat tapılmadı. Başlıq sətrini yoxlayın.')); box.style.padding = '10px'; return; }
+    box.style.padding = '';
+    var t = el('table', 'grid');
+    var thead = el('thead'), tr = el('tr');
+    d.headers.forEach(function (h) { tr.appendChild(el('th', null, h)); });
+    thead.appendChild(tr); t.appendChild(thead);
+    var tb = el('tbody');
+    d.rows.slice(0, 6).forEach(function (r) {
+      var row = el('tr');
+      for (var i = 0; i < d.headers.length; i++) row.appendChild(el('td', null, C.cellToString(r[i])));
+      tb.appendChild(row);
+    });
+    t.appendChild(tb); box.appendChild(t);
+  }
+
+  /* ---------- açarlar, sütunlar, qaydalar ---------- */
+  function guessPair(skipL, skipR) {
+    var L = S.L.headers, R = S.R.headers;
+    for (var i = 0; i < L.length; i++) {
+      if (skipL.indexOf(i) >= 0) continue;
+      var name = L[i].trim().toLowerCase();
+      for (var j = 0; j < R.length; j++) {
+        if (skipR.indexOf(j) >= 0) continue;
+        if (R[j].trim().toLowerCase() === name) return { l: i, r: j };
+      }
+    }
+    return { l: 0, r: 0 };
+  }
+
+  function fillSelect(sel) {
+    var side = sel.dataset.src, headers = S[side].headers, optional = sel.dataset.optional === '1';
+    var prev = sel.dataset.name || '';
+    sel.textContent = '';
+    if (optional) { var o0 = el('option', null, '— seçilməyib —'); o0.value = '-1'; sel.appendChild(o0); }
+    var chosen = -1;
+    headers.forEach(function (h, i) {
+      var o = el('option', null, h); o.value = String(i); if (h === prev) chosen = i; sel.appendChild(o);
+    });
+    sel.value = chosen >= 0 ? String(chosen) : (optional ? '-1' : '0');
+    sel.dataset.name = sel.value === '-1' ? '' : headers[+sel.value];
+  }
+
+  function guessByRegex(sel, re) {
+    var h = S.R.headers;
+    for (var i = 0; i < h.length; i++) {
+      if (re.test(h[i])) { sel.value = String(i); sel.dataset.name = h[i]; return; }
+    }
+  }
+
+  function refreshSetup() {
+    RES = null;
+    $('#results').hidden = true;
+    $('#runmsg').textContent = '';
+    var ok = S.L && S.R && S.L.headers.length && S.R.headers.length;
+    $('#setup').hidden = !ok;
+    if (!ok) return;
+    var v = S.L.ver + '-' + S.R.ver + '-' + S.L.sheet + '-' + S.R.sheet + '-' + S.L.file.name + '-' + S.R.file.name;
+    var changed = v !== pairsVer;
+    if (changed) {
+      pairsVer = v;
+      pairs = [guessPair([], [])];
+      take = new Set();
+      frows = [{ col: 0, op: 'nonempty', val: '' }];
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('select[data-src]'), fillSelect);
+    if (changed) {
+      guessByRegex($('#d-start'), /ba[şs]lan|ba[şs]la|start|from/i);
+      guessByRegex($('#d-end'), /bitm|son|end|until/i);
+    }
+    renderKeys(); renderTake(); renderFilterRows(); toggleBodies();
+    if (PENDING) { var rc = PENDING; PENDING = null; applyRecipe(rc); }
+  }
+
+  function optionsFor(sel, headers, value, onchange) {
+    sel.textContent = '';
+    headers.forEach(function (h, i) {
+      var o = el('option', null, h); o.value = i; if (i === value) o.selected = true; sel.appendChild(o);
+    });
+    sel.addEventListener('change', onchange);
+  }
+
+  function renderKeys() {
+    var box = $('#keys');
+    box.textContent = '';
+    pairs.forEach(function (p, i) {
+      var row = el('div', 'keyrow');
+      var a = el('label', 'f'); a.appendChild(document.createTextNode('Sol sütun'));
+      var sa = el('select'); sa.id = 'key-l-' + i; a.appendChild(sa);
+      var eq = el('span', 'eq', '=');
+      var b = el('label', 'f'); b.appendChild(document.createTextNode('Sağ sütun'));
+      var sb = el('select'); sb.id = 'key-r-' + i; b.appendChild(sb);
+      optionsFor(sa, S.L.headers, p.l, function (e) { p.l = +e.target.value; });
+      optionsFor(sb, S.R.headers, p.r, function (e) { p.r = +e.target.value; });
+      var rm = el('button', 'rm', '×'); rm.type = 'button'; rm.setAttribute('aria-label', 'Açarı sil');
+      rm.disabled = pairs.length === 1;
+      rm.addEventListener('click', function () { pairs.splice(i, 1); renderKeys(); });
+      row.appendChild(a); row.appendChild(eq); row.appendChild(b); row.appendChild(rm);
+      box.appendChild(row);
+    });
+    $('#addkey').hidden = pairs.length >= MAXPAIRS;
+  }
+
+  function renderTake() {
+    var box = $('#take');
+    box.textContent = '';
+    S.R.headers.forEach(function (h, i) {
+      var lab = el('label', 'chip');
+      var cb = el('input'); cb.type = 'checkbox'; cb.checked = take.has(i); cb.id = 'take-' + i;
+      cb.addEventListener('change', function () { if (cb.checked) take.add(i); else take.delete(i); updateTakeCount(); });
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(h));
+      box.appendChild(lab);
+    });
+    updateTakeCount();
+  }
+  function updateTakeCount() { $('#takecount').textContent = take.size + ' sütun seçilib'; }
+
+  var OPS = [['nonempty', 'boş deyil'], ['empty', 'boşdur'], ['eq', 'bərabərdir'], ['neq', 'bərabər deyil'], ['contains', 'tərkibində var']];
+  function renderFilterRows() {
+    var box = $('#f-rows');
+    box.textContent = '';
+    frows.forEach(function (r, i) {
+      var row = el('div', 'keyrow');
+      var a = el('label', 'f'); a.appendChild(document.createTextNode('Sütun (sağ)'));
+      var sc = el('select'); sc.id = 'f-col-' + i; a.appendChild(sc);
+      if (r.col < 0 || r.col >= S.R.headers.length) r.col = 0;
+      optionsFor(sc, S.R.headers, r.col, function (e) { r.col = +e.target.value; });
+      var b = el('label', 'f'); b.appendChild(document.createTextNode('Şərt'));
+      var so = el('select'); so.id = 'f-op-' + i; b.appendChild(so);
+      OPS.forEach(function (op) { var o = el('option', null, op[1]); o.value = op[0]; if (op[0] === r.op) o.selected = true; so.appendChild(o); });
+      var c = el('label', 'f'); c.appendChild(document.createTextNode('Dəyər'));
+      var iv = el('input'); iv.type = 'text'; iv.id = 'f-val-' + i; iv.value = r.val || ''; c.appendChild(iv);
+      function showVal() { c.hidden = !(r.op === 'eq' || r.op === 'neq' || r.op === 'contains'); }
+      so.addEventListener('change', function (e) { r.op = e.target.value; showVal(); });
+      iv.addEventListener('input', function (e) { r.val = e.target.value; });
+      showVal();
+      var rm = el('button', 'rm', '×'); rm.type = 'button'; rm.setAttribute('aria-label', 'Şərti sil');
+      rm.disabled = frows.length === 1;
+      rm.addEventListener('click', function () { frows.splice(i, 1); renderFilterRows(); });
+      row.appendChild(a); row.appendChild(b); row.appendChild(c); row.appendChild(rm);
+      box.appendChild(row);
+    });
+    $('#f-add').hidden = frows.length >= 4;
+  }
+  $('#f-add').addEventListener('click', function () { frows.push({ col: 0, op: 'nonempty', val: '' }); renderFilterRows(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('select[data-src]'), function (sel) {
+    sel.addEventListener('change', function () {
+      sel.dataset.name = sel.value === '-1' ? '' : S[sel.dataset.src].headers[+sel.value];
+    });
+  });
+
+  var RULE_TOGGLES = [['f-on', 'f-body'], ['d-on', 'd-body'], ['r-on', 'r-body'], ['n-on', 'n-body'], ['c-on', 'c-body']];
+  function toggleBodies() {
+    RULE_TOGGLES.forEach(function (p) { $('#' + p[1]).hidden = !$('#' + p[0]).checked; });
+    var pol = $('#policy').value;
+    $('#pick-wrap').hidden = !(pol === 'latest' || pol === 'highest' || pol === 'lowest');
+  }
+  RULE_TOGGLES.forEach(function (p) { $('#' + p[0]).addEventListener('change', toggleBodies); });
+  $('#policy').addEventListener('change', toggleBodies);
+
+  $('#addkey').addEventListener('click', function () {
+    var sl = pairs.map(function (p) { return p.l; }), sr = pairs.map(function (p) { return p.r; });
+    pairs.push(guessPair(sl, sr)); renderKeys();
+  });
+  $('#takeall').addEventListener('click', function () {
+    take = new Set(S.R.headers.map(function (_, i) { return i; })); renderTake();
+  });
+  $('#takenone').addEventListener('click', function () { take = new Set(); renderTake(); });
+
+  function readOptions() {
+    return {
+      spaces: $('#o-spaces').checked, nocase: $('#o-nocase').checked,
+      diacritics: $('#o-diacr').checked, alnum: $('#o-alnum').checked, zeros: $('#o-zeros').checked
+    };
+  }
+
+  function selIdx(id) { return parseInt($('#' + id).value, 10); }
+  function selName(id) { var s = $('#' + id); var side = s.dataset.src; var i = parseInt(s.value, 10); return i >= 0 && S[side] ? S[side].headers[i] : ''; }
+  function inputDateKey(v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m ? (+m[1]) * 10000 + (+m[2]) * 100 + (+m[3]) : null; }
+  function showDate(k) { var s = String(k); return s.slice(6, 8) + '.' + s.slice(4, 6) + '.' + s.slice(0, 4); }
+
+  var POLICY_TEXT = {
+    first: 'ilk sətir götürülür', blank: 'boş buraxılır', all: 'hamısı göstərilir',
+    latest: 'ən sonuncu götürülür', highest: 'ən böyük dəyərli götürülür', lowest: 'ən kiçik dəyərli götürülür'
+  };
+
+  /* qaydaları hesablama obyektinə çevirir; xəta olsa mətn qaytarır */
+  function buildCfg() {
+    var o = readOptions(), policy = $('#policy').value, x = {}, desc = [];
+    var tk = Array.from(take).sort(function (a, b) { return a - b; });
+    var prs = pairs.map(function (p) { return { l: p.l, r: p.r }; });
+    desc.push(['Açarlar', pairs.map(function (p) { return S.L.headers[p.l] + ' = ' + S.R.headers[p.r]; }).join('; ')]);
+    desc.push(['Gətirilən sütunlar', tk.map(function (i) { return S.R.headers[i]; }).join(', ') || '(yoxdur)']);
+
+    var opts = [];
+    if (o.spaces) opts.push('boşluqlar təmizlənib');
+    if (o.nocase) opts.push('registr nəzərə alınmayıb');
+    if (o.diacritics) opts.push('Azərbaycan hərfləri ASCII ilə eyniləşdirilib');
+    if (o.alnum) opts.push('yalnız hərf və rəqəm');
+    if (o.zeros) opts.push('baştakı sıfırlar nəzərə alınmayıb');
+    desc.push(['Müqayisə seçimləri', opts.join(', ') || '(yoxdur)']);
+
+    if ($('#f-on').checked) {
+      var fl = frows.filter(function (r) { return r.col >= 0; });
+      x.filters = fl.map(function (r) { return { col: r.col, op: r.op, val: r.val }; });
+      desc.push(['Süzgəc (sağ)', fl.map(function (r) {
+        var t = OPS.filter(function (p) { return p[0] === r.op; })[0][1];
+        return S.R.headers[r.col] + ' ' + t + (r.op === 'eq' || r.op === 'neq' || r.op === 'contains' ? ' «' + r.val + '»' : '');
+      }).join('; ')]);
+    }
+    if ($('#d-on').checked) {
+      var ref = inputDateKey($('#d-ref').value);
+      if (!ref) return 'Tarix şərti üçün tarixi seçin.';
+      var st = selIdx('d-start'), en = selIdx('d-end');
+      if (st < 0 && en < 0) return 'Tarix şərti üçün ən azı bir sütun (başlanğıc və ya bitmə) seçin.';
+      x.date = { start: st, end: en, ref: ref, emptyEnd: $('#d-empty').value };
+      desc.push(['Tarix şərti', showDate(ref) + ' tarixi ' + (st >= 0 ? S.R.headers[st] : '(başlanğıc yoxdur)') + ' və ' + (en >= 0 ? S.R.headers[en] : '(bitmə yoxdur)') +
+        ' arasındadır; bitmə tarixi boşdursa ' + ($('#d-empty').value === 'accept' ? 'qəbul edilir' : 'nəzərə alınmır')]);
+    }
+    if ($('#r-on').checked) {
+      x.range = { left: selIdx('r-left'), from: selIdx('r-from'), to: selIdx('r-to'), hiIncl: $('#r-incl').value === '1', emptyAsZero: $('#r-zero').checked };
+      desc.push(['Aralıq', S.L.headers[x.range.left] + ' dəyəri ' + S.R.headers[x.range.from] + ' ≤ dəyər ' + (x.range.hiIncl ? '≤ ' : '< ') + S.R.headers[x.range.to] +
+        (x.range.emptyAsZero ? '; boş dəyər 0 sayılır' : '')]);
+    }
+    if (policy === 'latest' || policy === 'highest' || policy === 'lowest') {
+      x.pickCol = selIdx('pick-col');
+      desc.push(['Bir neçə uyğunluq', POLICY_TEXT[policy] + ' (' + S.R.headers[x.pickCol] + ')']);
+    } else {
+      desc.push(['Bir neçə uyğunluq', POLICY_TEXT[policy]]);
+    }
+    if ($('#n-on').checked) {
+      x.noteText = $('#n-text').value.trim() || 'Uyğundur';
+      x.noteName = $('#n-name').value.trim() || 'Qeyd';
+      desc.push(['Qeyd', x.noteName + ': «' + x.noteText + '»']);
+    }
+    if ($('#c-on').checked) {
+      x.compare = { l: selIdx('c-left'), r: selIdx('c-right'), name: $('#c-name').value.trim() || 'Yoxlama' };
+      desc.push(['Müqayisə', S.L.headers[x.compare.l] + ' ↔ ' + S.R.headers[x.compare.r]]);
+    }
+    return { o: o, policy: policy, take: tk, pairs: prs, x: x, desc: desc };
+  }
+
+  /* ---------- işə sal ---------- */
+  $('#run').addEventListener('click', async function () {
+    var btn = $('#run');
+    var cfg = buildCfg();
+    if (typeof cfg === 'string') { $('#runmsg').textContent = cfg; return; }
+    btn.disabled = true; $('#runmsg').textContent = 'İşlənir…';
+    await tick();
+    try {
+      var res = C.runJoin(S.L, S.R, cfg.pairs, cfg.take, cfg.o, cfg.policy, cfg.x);
+      RES = { res: res, cfg: cfg, when: new Date() };
+      VIEW = 'all';
+      renderResults();
+      $('#runmsg').textContent = '';
+      $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      $('#runmsg').textContent = 'Xəta: ' + (e && e.message ? e.message : e);
+    }
+    btn.disabled = false;
+  });
+
+  /* ---------- nəticə ---------- */
+  var VIEWS = [
+    ['all', 'Hamısı', function (c, r) { return r.rows.length; }, true],
+    ['found', 'Tapılanlar', function (c) { return c.found + c.dup + c.picked; }, true],
+    ['dup', 'Təkrar', function (c) { return c.dup; }, false],
+    ['picked', 'Seçilmiş', function (c) { return c.picked; }, false],
+    ['nocond', 'Şərt ödənmir', function (c) { return c.nocond; }, false],
+    ['notfound', 'Tapılmadı', function (c) { return c.notfound; }, true],
+    ['empty', 'Açar boşdur', function (c) { return c.empty; }, false],
+    ['ronly', 'Yalnız sağda', function (c) { return c.rightOnly; }, true]
+  ];
+
+  function viewData(v) {
+    var r = RES.res;
+    if (v === 'ronly') return { headers: r.rightOnly.headers, rows: r.rightOnly.rows, brought: false };
+    var rows = r.rows;
+    if (v === 'found') rows = rows.filter(function (x) { return x.s === 'found' || x.s === 'dup' || x.s === 'picked'; });
+    else if (v !== 'all') rows = rows.filter(function (x) { return x.s === v; });
+    return { headers: r.headers, rows: rows, brought: true };
+  }
+
+  function renderResults() {
+    var r = RES.res, c = r.counts;
+    $('#results').hidden = false;
+    var sum = 'Solda ' + fmtN(c.left) + ' sətir, sağda ' + fmtN(c.right) + ' sətir. Nəticədə ' + fmtN(c.out) + ' sətir var';
+    if (c.out !== c.left) sum += ' (sağdakı təkrarlar sətirləri artırıb)';
+    $('#summary').textContent = sum + '.';
+
+    var nb = $('#notices'); nb.textContent = '';
+    if (c.found + c.dup + c.picked === 0) {
+      nb.appendChild(el('p', 'notice', c.nocond
+        ? 'Açar uyğun gələn sətirlər var, amma heç biri qaydaları ödəmir. «Şərt ödənmir» görünüşünə baxın və tarix, aralıq və süzgəc qaydalarını yoxlayın.'
+        : 'Heç bir sətir uyğun gəlmədi. Açar sütunlarını və müqayisə seçimlərini yoxlayın. Müqayisə üçün sol açar: «' + r.sample.l + '», sağ açar: «' + r.sample.r + '».'));
+    }
+    if (r.dupKeysRight > 0) {
+      nb.appendChild(el('p', 'notice', 'Sağ faylda' + (RES.cfg.x.filters || RES.cfg.x.date || RES.cfg.x.range ? ' (qaydalardan sonra)' : '') + ' ' + fmtN(r.dupKeysRight) + ' açar təkrarlanır (cəmi ' + fmtN(r.dupRowsRight) + ' sətir). ' +
+        (c.picked ? 'Seçim qaydası tətbiq olunub.' : 'Belə sətirlər «Təkrar» statusu alıb. Real fərqli adamlar eyni açarı paylaşırsa, ikinci açar və ya seçim qaydası əlavə edin.')));
+    }
+
+    var vb = $('#views'); vb.textContent = '';
+    VIEWS.forEach(function (v) {
+      var n = v[2](c, r);
+      if (!v[3] && n === 0 && VIEW !== v[0]) return;
+      var b = el('button', 'view'); b.type = 'button';
+      b.setAttribute('aria-pressed', v[0] === VIEW ? 'true' : 'false');
+      b.appendChild(el('b', null, v[1]));
+      b.appendChild(el('span', 'cnt', fmtN(n)));
+      b.addEventListener('click', function () { VIEW = v[0]; renderResults(); });
+      vb.appendChild(b);
+    });
+    renderTable();
+  }
+
+  function renderTable() {
+    var vd = viewData(VIEW), r = RES.res;
+    var host = $('#restable'); host.textContent = '';
+    if (!vd.rows.length) {
+      host.appendChild(el('p', 'hint', 'Bu görünüşdə sətir yoxdur.')); host.firstChild.style.padding = '12px';
+      $('#tablenote').textContent = '';
+      return;
+    }
+    var t = el('table', 'grid');
+    var thead = el('thead'), tr = el('tr');
+    vd.headers.forEach(function (h, i) {
+      tr.appendChild(el('th', vd.brought && i >= r.leftWidth ? 'brought' : null, h));
+    });
+    tr.appendChild(el('th', null, r.statusName));
+    thead.appendChild(tr); t.appendChild(thead);
+    var tb = el('tbody');
+    var shown = Math.min(SHOW, vd.rows.length);
+    for (var i = 0; i < shown; i++) {
+      var x = vd.rows[i], row = el('tr');
+      for (var j = 0; j < vd.headers.length; j++) row.appendChild(el('td', null, C.cellToString(x.c[j])));
+      var td = el('td'); td.appendChild(el('span', 'pill ' + x.s, C.statusLabel(x.s, x.n))); row.appendChild(td);
+      tb.appendChild(row);
+    }
+    t.appendChild(tb); host.appendChild(t);
+    $('#tablenote').textContent = shown < vd.rows.length
+      ? 'İlk ' + fmtN(shown) + ' sətir göstərilir, cəmi ' + fmtN(vd.rows.length) + '. Excel faylında hamısı olacaq.'
+      : fmtN(vd.rows.length) + ' sətir göstərilir.';
+  }
+
+  /* ---------- Excel-ə yükləmə ---------- */
+  function toAoa(v) {
+    var vd = viewData(v), r = RES.res;
+    var aoa = [vd.headers.concat([r.statusName])];
+    for (var i = 0; i < vd.rows.length; i++) {
+      var x = vd.rows[i];
+      aoa.push(x.c.concat([C.statusLabel(x.s, x.n)]));
+    }
+    return aoa;
+  }
+
+  function makeSheet(aoa) {
+    var ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true, dateNF: 'dd.mm.yyyy' });
+    var w = [];
+    for (var c = 0; c < aoa[0].length; c++) {
+      var m = String(aoa[0][c]).length;
+      for (var i = 1; i < Math.min(aoa.length, 100); i++) {
+        var l = C.cellToString(aoa[i][c]).length; if (l > m) m = l;
+      }
+      w.push({ wch: Math.min(Math.max(m + 2, 8), 42) });
+    }
+    ws['!cols'] = w;
+    return ws;
+  }
+
+  function p2(n) { return n < 10 ? '0' + n : String(n); }
+  function stampOf(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+
+  function summaryAoa() {
+    var r = RES.res, c = r.counts;
+    var aoa = [
+      ['Üzləşdirmə xülasəsi', ''],
+      ['Tarix', stampOf(RES.when) + ' ' + p2(RES.when.getHours()) + ':' + p2(RES.when.getMinutes())],
+      ['Sol fayl', S.L.file.name + (S.L.wb ? ' / ' + S.L.sheet : '')],
+      ['Sağ fayl', S.R.file.name + ' / ' + S.R.sheet]
+    ].concat(RES.cfg.desc);
+    aoa.push(['', '']);
+    aoa.push(['Solda sətir', c.left], ['Sağda sətir', c.right], ['Nəticədə sətir', c.out]);
+    aoa.push(['Tapıldı', c.found], ['Təkrar', c.dup], ['Seçildi', c.picked], ['Şərt ödənmir', c.nocond]);
+    aoa.push(['Tapılmadı', c.notfound], ['Açar boşdur', c.empty], ['Yalnız sağda', c.rightOnly]);
+    return aoa;
+  }
+
+  async function doExport(kind) {
+    var msg = $('#expmsg'), b1 = $('#exp-cur'), b2 = $('#exp-all');
+    if (typeof XLSX === 'undefined') { msg.textContent = 'Excel kitabxanası yüklənməyib.'; return; }
+    b1.disabled = b2.disabled = true; msg.textContent = 'Fayl hazırlanır…';
+    await tick();
+    try {
+      var wb = XLSX.utils.book_new();
+      var r = RES.res, c = r.counts;
+      if (kind === 'cur') {
+        var names = { all: 'Nəticə', found: 'Tapılanlar', dup: 'Təkrar', picked: 'Seçilmiş', nocond: 'Şərt ödənmir', notfound: 'Tapılmayanlar', empty: 'Açar boşdur', ronly: 'Yalnız sağda' };
+        XLSX.utils.book_append_sheet(wb, makeSheet(toAoa(VIEW)), names[VIEW]);
+      } else {
+        XLSX.utils.book_append_sheet(wb, makeSheet(toAoa('all')), 'Nəticə');
+        if (c.notfound) XLSX.utils.book_append_sheet(wb, makeSheet(toAoa('notfound')), 'Tapılmayanlar');
+        if (c.nocond) XLSX.utils.book_append_sheet(wb, makeSheet(toAoa('nocond')), 'Şərt ödənmir');
+        if (c.dup) XLSX.utils.book_append_sheet(wb, makeSheet(toAoa('dup')), 'Təkrar');
+        if (c.picked) XLSX.utils.book_append_sheet(wb, makeSheet(toAoa('picked')), 'Seçilmiş');
+        if (c.rightOnly) XLSX.utils.book_append_sheet(wb, makeSheet(toAoa('ronly')), 'Yalnız sağda');
+        XLSX.utils.book_append_sheet(wb, makeSheet(summaryAoa()), 'Xülasə');
+      }
+      XLSX.writeFile(wb, 'uzlesdirme_' + stampOf(new Date()) + '.xlsx', { cellDates: true });
+      msg.textContent = 'Fayl yükləndi.';
+    } catch (e) {
+      msg.textContent = 'Fayl yaradılmadı: ' + (e && e.message ? e.message : e);
+    }
+    b1.disabled = b2.disabled = false;
+  }
+  $('#exp-cur').addEventListener('click', function () { doExport('cur'); });
+  $('#exp-all').addEventListener('click', function () { doExport('all'); });
+
+  /* ---------- nəticəni yeni sol fayl et ---------- */
+  $('#chain').addEventListener('click', function () {
+    if (!RES) return;
+    var r = RES.res;
+    var rows = r.rows.map(function (x) { return x.c.concat([C.statusLabel(x.s, x.n)]); });
+    var headers = C.dedupeHeaders(r.headers.concat([r.statusName]));
+    S.L = { file: { name: 'Nəticə (əvvəlki üzləşdirmə)' }, wb: null, sheet: 'Nəticə', headerRow: 1, headers: headers, rows: rows, ver: (S.L.ver || 0) + 1 };
+    S.R = null;
+    $('#file-R').value = '';
+    renderPanel('L'); renderPanel('R');
+    refreshSetup();
+    $('#panels').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('#err-R').textContent = 'Nəticə sol fayl oldu. İndi sağ üçün yeni fayl seçin.';
+    $('#err-R').hidden = false;
+  });
+
+  /* ---------- qaydanı saxla və yüklə ---------- */
+  function nameAt(side, i) { return i >= 0 && S[side] && S[side].headers[i] !== undefined ? S[side].headers[i] : ''; }
+
+  function getRecipe() {
+    var o = readOptions();
+    return {
+      app: 'excel-uzlesdirme', version: 2,
+      keys: pairs.map(function (p) { return { l: nameAt('L', p.l), r: nameAt('R', p.r) }; }),
+      take: Array.from(take).sort(function (a, b) { return a - b; }).map(function (i) { return nameAt('R', i); }),
+      options: o, policy: $('#policy').value, pickCol: selName('pick-col'),
+      filter: { on: $('#f-on').checked, rows: frows.map(function (r) { return { col: nameAt('R', r.col), op: r.op, val: r.val || '' }; }) },
+      date: { on: $('#d-on').checked, ref: $('#d-ref').value, start: selName('d-start'), end: selName('d-end'), emptyEnd: $('#d-empty').value },
+      range: { on: $('#r-on').checked, left: selName('r-left'), from: selName('r-from'), to: selName('r-to'), incl: $('#r-incl').value, zero: $('#r-zero').checked },
+      note: { on: $('#n-on').checked, text: $('#n-text').value, name: $('#n-name').value },
+      compare: { on: $('#c-on').checked, left: selName('c-left'), right: selName('c-right'), name: $('#c-name').value }
+    };
+  }
+
+  function applyRecipe(rc) {
+    var warn = [];
+    function idxOf(side, name, what) {
+      if (!name) return -1;
+      var i = S[side].headers.indexOf(name);
+      if (i < 0) warn.push(what + ': «' + name + '» sütunu tapılmadı');
+      return i;
+    }
+    function setSel(id, name, what) {
+      var s = $('#' + id), side = s.dataset.src;
+      var i = idxOf(side, name, what);
+      if (i >= 0) { s.value = String(i); s.dataset.name = name; }
+    }
+    var np = [];
+    (rc.keys || []).forEach(function (k) {
+      var l = idxOf('L', k.l, 'Sol açar'), r = idxOf('R', k.r, 'Sağ açar');
+      if (l >= 0 && r >= 0) np.push({ l: l, r: r });
+    });
+    pairs = np.length ? np : [guessPair([], [])];
+    take = new Set();
+    (rc.take || []).forEach(function (n) { var i = idxOf('R', n, 'Gətiriləcək sütun'); if (i >= 0) take.add(i); });
+    var o = rc.options || {};
+    $('#o-spaces').checked = !!o.spaces; $('#o-nocase').checked = !!o.nocase; $('#o-diacr').checked = !!o.diacritics;
+    $('#o-alnum').checked = !!o.alnum; $('#o-zeros').checked = !!o.zeros;
+    $('#policy').value = rc.policy || 'first';
+    setSel('pick-col', rc.pickCol, 'Müqayisə sütunu');
+    var f = rc.filter || {};
+    $('#f-on').checked = !!f.on;
+    var fr = (f.rows || []).map(function (r) { return { col: idxOf('R', r.col, 'Süzgəc sütunu'), op: r.op || 'nonempty', val: r.val || '' }; });
+    frows = fr.length ? fr : [{ col: 0, op: 'nonempty', val: '' }];
+    var d = rc.date || {};
+    $('#d-on').checked = !!d.on; $('#d-ref').value = d.ref || ''; $('#d-empty').value = d.emptyEnd || 'reject';
+    setSel('d-start', d.start, 'Başlanğıc sütunu'); setSel('d-end', d.end, 'Bitmə sütunu');
+    var g = rc.range || {};
+    $('#r-on').checked = !!g.on; $('#r-incl').value = g.incl || '0'; $('#r-zero').checked = !!g.zero;
+    setSel('r-left', g.left, 'Aralıq: sol dəyər'); setSel('r-from', g.from, 'Aralıq: aşağı sərhəd'); setSel('r-to', g.to, 'Aralıq: yuxarı sərhəd');
+    var n = rc.note || {};
+    $('#n-on').checked = !!n.on; if (n.text != null) $('#n-text').value = n.text; if (n.name != null) $('#n-name').value = n.name;
+    var c = rc.compare || {};
+    $('#c-on').checked = !!c.on; if (c.name != null) $('#c-name').value = c.name;
+    setSel('c-left', c.left, 'Müqayisə: sol sütun'); setSel('c-right', c.right, 'Müqayisə: sağ sütun');
+    renderKeys(); renderTake(); renderFilterRows(); toggleBodies();
+    $('#recipemsg').textContent = warn.length ? 'Qayda yükləndi, amma bunlar tapılmadı: ' + warn.join('; ') + '.' : 'Qayda yükləndi.';
+  }
+
+  $('#rc-save').addEventListener('click', function () {
+    var rc = getRecipe();
+    var blob = new Blob([JSON.stringify(rc, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'uzlesdirme_qaydasi.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    $('#recipemsg').textContent = 'Qayda saxlandı: uzlesdirme_qaydasi.json. Növbəti dəfə eyni quruluşlu fayllarla «Qaydanı yüklə» bas.';
+  });
+  $('#rc-load').addEventListener('click', function () { $('#rc-file').click(); });
+  $('#rc-file').addEventListener('change', async function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    try {
+      var rc = JSON.parse(await f.text());
+      if (rc.app !== 'excel-uzlesdirme') throw new Error('bu fayl Excel Üzləşdirmə qaydası deyil');
+      e.target.value = '';
+      if (S.L && S.R && !$('#setup').hidden) applyRecipe(rc);
+      else { PENDING = rc; $('#recipemsg').textContent = 'Qayda yükləndi. İki faylı seçəndə tətbiq olunacaq.'; $('#recipemsg').style.display = ''; }
+    } catch (err) {
+      $('#recipemsg').textContent = 'Qayda oxunmadı: ' + (err && err.message ? err.message : err);
+    }
+  });
+
+  buildPanel('L');
+  buildPanel('R');
+})();
+</script>
+</body>
+</html>
