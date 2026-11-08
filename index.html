@@ -109,6 +109,7 @@ dialog h2{margin:0 0 6px}
   <div><h1>Excel Üzləşdirmə</h1><p>İki Excel cədvəlini tutuşdurun, qruplayın, nə dəyişdiyini tapın. Fayllarınız brauzerdən çıxmır: heç bir serverə göndərilmir.</p></div>
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="chip" id="eng"><i></i><span id="engtxt">Python yüklənir…</span></span><button id="btnHelp" type="button">İstifadə qaydaları</button></div>
 </div></header>
+<div class="wrap"><div id="engerr" class="err hide" style="margin:12px 0 0"></div></div>
 
 <div class="wrap"><main>
 
@@ -171,10 +172,13 @@ self.onmessage=async(ev)=>{
   const m=ev.data;
   try{
     if(m.type==='init'){
+      self.postMessage({type:'status',text:'Python mühərriki yüklənir… (1/4)'});
       importScripts(m.indexURL+'pyodide.js');
+      self.postMessage({type:'status',text:'Python başladılır… (2/4)'});
       py=await loadPyodide({indexURL:m.indexURL});
-      self.postMessage({type:'status',text:'Excel kitabxanası yüklənir…'});
+      self.postMessage({type:'status',text:'Excel kitabxanası yüklənir… (3/4)'});
       await py.loadPackage('openpyxl');
+      self.postMessage({type:'status',text:'Proqram kodu yüklənir… (4/4)'});
       py.FS.mkdirTree('/app');
       for(const [n,s] of Object.entries(m.src)) py.FS.writeFile('/app/'+n,s);
       py.runPython("import sys\nsys.path.insert(0,'/app')\nimport webapp");
@@ -782,7 +786,9 @@ function init(){
   Bridge.onStatus=t=>{tx.textContent=t;};
   if(Bridge.start)Bridge.start();
   Bridge.ready.then(()=>{S.ready=true;eng.classList.add('ready');tx.textContent='Hazırdır';$('btnRun').disabled=false;refreshMem();})
-    .catch(e=>{eng.classList.add('err');tx.textContent='Python yüklənmədi';showErr('Python mühərriki (Pyodide) yüklənmədi. İnternet bağlantısını yoxlayın və səhifəni yeniləyin.\n'+e.message);});
+    .catch(e=>{eng.classList.add('err');const stage=tx.textContent;tx.textContent='Python yüklənmədi';
+      const box=$('engerr');box.classList.remove('hide');
+      box.textContent='Python mühərriki yüklənmədi.\nMərhələ: '+stage+'\nXəta: '+(e&&e.message||e)+'\nBrauzer: '+navigator.userAgent+'\nSəhifə: '+location.href+'\nBu mətni kopyalayıb göndərin. Əvvəlcə səhifəni Ctrl+F5 ilə yeniləyin və interneti yoxlayın.';});
 }
 init();
 </script>
